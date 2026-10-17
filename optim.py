@@ -58,6 +58,16 @@ class Adam:
                 continue
 
             gradient = parameter.grad
+            # Get the mask if this parameter has one
+            mask = getattr(parameter, "mask", None)
+
+            # Ignore gradients for pruned weights
+            if mask is not None:
+                gradient = gradient * mask
+
+                # Clear optimizer momentum for pruned weights
+                self.first_moments[index] *= mask
+                self.second_moments[index] *= mask
 
             # Fail clearly if training produces invalid gradients.
             if not np.all(np.isfinite(gradient)):
@@ -96,6 +106,9 @@ class Adam:
 
             # Update the underlying parameter values.
             parameter.data -= update
+            # Keep pruned weights exactly zero
+            if mask is not None:
+                parameter.data *= mask
 
             # Make sure the parameter values remain finite.
             if not np.all(np.isfinite(parameter.data)):

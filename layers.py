@@ -36,6 +36,8 @@ class Linear:
             (in_features, out_features),
             dtype=np.float64
         )
+        # Attach the mask to the weight Tensor
+        self.weights.mask = self.mask
 
         # Initialize trainable biases to zero.
         self.bias = Tensor(
