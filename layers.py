@@ -30,6 +30,12 @@ class Linear:
             weights,
             requires_grad=True
         )
+        # 1 means the connection is active.
+        # 0 means the connection has been pruned.
+        self.mask = np.ones(
+            (in_features, out_features),
+            dtype=np.float64
+        )
 
         # Initialize trainable biases to zero.
         self.bias = Tensor(
@@ -49,7 +55,12 @@ class Linear:
         """
 
         # Multiply inputs by weights and add bias.
-        output = inputs.matmul(self.weights) + self.bias
+        effective_weights = self.weights * Tensor(
+            self.mask,
+            requires_grad=False
+        )
+
+        output = inputs.matmul(effective_weights) + self.bias
 
         return output
 
