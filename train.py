@@ -5,6 +5,7 @@ from tensor import Tensor
 from model import MLP
 from optim import Adam
 from spiral_data import make_spiral_data
+from pruning import prune_weights, cubic_sparsity_schedule
 
 
 def evaluate(model, X, y):
@@ -73,10 +74,14 @@ def train():
     )
 
     # Training configuration.
-    epochs = 400
+    epochs = 600
     batch_size = 32
 
-    # Store measurements so we can plot the learning curve later.
+    # Pruning settings
+    target_sparsity = 0.75
+    pruning_start = 200
+    pruning_end = 580
+    pruning_frequency = 20
     history = []
 
     print("Starting training...")
@@ -124,7 +129,32 @@ def train():
 
             # Update weights and biases using Adam.
             optimizer.step()
+        # Prune low-importance connections at scheduled epochs.
+        if (
+            epoch >= pruning_start
+            and epoch <= pruning_end
+            and epoch % pruning_frequency == 0
+        ):
+            current_sparsity = cubic_sparsity_schedule(
+                epoch,
+                pruning_start,
+                pruning_end,
+                target_sparsity
+            )
 
+            actual_sparsity = prune_weights(
+                model,
+                current_sparsity,
+                X_train,
+                y_train,
+                batch_size=batch_size
+            )
+
+            print(
+                f"Epoch {epoch}: "
+                f"Target sparsity: {current_sparsity:.2%} | "
+                f"Actual sparsity: {actual_sparsity:.2%}"
+            )    
         # Measure performance after completing this epoch.
         train_loss, train_accuracy = evaluate(
             model, X_train, y_train
