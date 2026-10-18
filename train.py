@@ -74,7 +74,7 @@ def train():
     )
 
     # Training configuration.
-    epochs = 600
+    epochs = 700
     batch_size = 32
 
     # Pruning settings
