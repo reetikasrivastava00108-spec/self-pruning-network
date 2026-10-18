@@ -204,11 +204,29 @@ def train():
             raise FloatingPointError(
                 "Non-finite parameter detected after training."
             )
+    # Final pruning statistics.
+    total_connections = 0
+    active_connections = 0
+
+    for layer in (model.layer1, model.layer2):
+        if hasattr(layer, "weights") and hasattr(layer, "mask"):
+            total_connections += layer.weights.data.size
+            active_connections += np.count_nonzero(layer.mask)
+
+    pruned_connections = total_connections - active_connections
+
+    if total_connections > 0:
+        actual_sparsity = pruned_connections / total_connections
+    else:
+        actual_sparsity = 0.0
 
     print()
-    print("Training completed successfully.")
-    print(f"Final training accuracy: {train_accuracy:.2%}")
-    print(f"Final test accuracy:     {test_accuracy:.2%}")
+    print("Final pruning statistics:")
+    print(f"Total connections:  {total_connections}")
+    print(f"Active connections: {active_connections}")
+    print(f"Pruned connections: {pruned_connections}")
+    print(f"Actual sparsity:    {actual_sparsity:.2%}")
+    print(f"Target sparsity:    {target_sparsity:.2%}")
     print("Learning curve saved to learning_curve.csv")
 
     return model, history
