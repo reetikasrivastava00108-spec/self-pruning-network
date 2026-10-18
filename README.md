@@ -106,9 +106,14 @@ Gradual pruning gives the model time to learn useful representations before and 
 
 ### Masks and optimizer behavior
 
-A binary mask identifies active and pruned weights. Masked weights should contribute zero to the forward computation and should not regrow through optimizer updates.
+A binary mask identifies active and pruned weights. Masked weights contribute zero to the effective weight matrix and remain zero after optimizer updates.
 
-The implementation also handles gradients and Adam optimizer state for masked weights. These invariants should be verified by automated tests.
+The Adam optimizer masks gradients and clears the first and second moment states for pruned connections. This prevents stale optimizer momentum from updating weights that have been removed.
+
+Automated tests verify that a masked connection has zero effective weight, receives zero gradient through the layer's forward computation, and remains zero after an Adam update. The tests also verify that the corresponding Adam moment states are cleared.
+
+The full test suite currently passes 25 tests.
+
 
 ## Experimental Results
 
