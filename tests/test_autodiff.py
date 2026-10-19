@@ -465,6 +465,43 @@ def test_cross_entropy_gradient():
 
     print("Cross-entropy gradient check passed!")
 
+def test_relu_gradient():
+    x_data = np.array([-2.0, -0.5, 0.5, 2.0])
+
+    x = Tensor(x_data.copy(), requires_grad=True)
+    loss = x.relu().sum()
+    loss.backward()
+
+    numerical_grad = numerical_gradient(
+        lambda values: np.sum(np.maximum(values, 0.0)),
+        x_data.copy()
+    )
+
+    assert np.allclose(
+        x.grad, numerical_grad, atol=1e-5
+    ), "ReLU gradient check failed!"
+
+    print("ReLU gradient check passed!")
+
+
+def test_tanh_gradient():
+    x_data = np.array([-2.0, -0.5, 0.5, 2.0])
+
+    x = Tensor(x_data.copy(), requires_grad=True)
+    loss = x.tanh().sum()
+    loss.backward()
+
+    numerical_grad = numerical_gradient(
+        lambda values: np.sum(np.tanh(values)),
+        x_data.copy()
+    )
+
+    assert np.allclose(
+        x.grad, numerical_grad, atol=1e-5
+    ), "Tanh gradient check failed!"
+
+    print("Tanh gradient check passed!")
+
 
 if __name__ == "__main__":
     test_broadcasting_addition_gradient()
