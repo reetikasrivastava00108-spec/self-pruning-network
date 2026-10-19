@@ -167,6 +167,15 @@ However, dense NumPy inference took approximately 0.095 ms per call, while the P
 
 Fewer active connections do not automatically mean faster inference. Efficient sparse execution and further benchmarking are needed before claiming a real speedup.
 
+### Quantitative Claim: Sparsity vs. Inference Cost
+
+On a batch of 128 inputs, pruning 75% of weight connections reduces estimated multiply-accumulate operations (MACs) from 40,960 to 10,240 per batch, a 75% reduction.
+
+However, the current Python-loop sparse inference implementation takes 0.768 ms per call, compared with 0.096 ms for dense NumPy inference in this benchmark. This shows that fewer active connections do not automatically result in faster inference. An optimized sparse computation kernel is needed to improve inference speed.
+
+*Note: Timing measurements depend on hardware and runtime conditions.*
+
+
 ## Running the Project
 
 Activate your Python virtual environment, then install the required dependencies if they are not already installed.

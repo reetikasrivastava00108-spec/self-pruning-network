@@ -110,6 +110,29 @@ def main():
         speedup = dense_seconds / sparse_seconds
         print(f"Dense/sparse time ratio: {speedup:.3f}x")
 
+    # Verify the structural cost claim.
+    total_connections = sum(
+        layer.mask.size for layer in weight_layers
+    )
+    active_connections = sum(
+        np.count_nonzero(layer.mask) for layer in weight_layers
+    )
+
+    actual_sparsity = 1.0 - (
+        active_connections / total_connections
+    )
+
+    assert np.isclose(actual_sparsity, 0.75), (
+        f"Expected 75% sparsity, got {actual_sparsity:.2%}"
+    )
+
+    assert np.isclose(reduction, 75.0), (
+        f"Expected 75% MAC reduction, got {reduction:.2f}%"
+    )
+
+    print(f"Verified weight sparsity: {actual_sparsity:.2%}")
+    print("Structural cost claim verified.")    
+
 
 if __name__ == "__main__":
     main()
