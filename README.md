@@ -1,4 +1,4 @@
-﻿# Self-Pruning Neural Network
+# Self-Pruning Neural Network
 
 A NumPy-based neural network built from scratch, featuring a custom reverse-mode automatic differentiation engine, Adam optimizer, and Taylor-based weight pruning.
 
@@ -26,25 +26,25 @@ The implementation uses Python and NumPy for tensor operations, gradient computa
 
 ```text
 self-pruning-network/
-â”œâ”€â”€ tensor.py
-â”œâ”€â”€ layers.py
-â”œâ”€â”€ model.py
-â”œâ”€â”€ optim.py
-â”œâ”€â”€ pruning.py
-â”œâ”€â”€ spiral_data.py
-â”œâ”€â”€ train.py
-â”œâ”€â”€ plot_learning_curve.py
-â”œâ”€â”€ learning_curve.csv
-â”œâ”€â”€ accuracy_curve.png
-â”œâ”€â”€ loss_curve.png
-â””â”€â”€ tests/
+├── tensor.py
+├── layers.py
+├── model.py
+├── optim.py
+├── pruning.py
+├── spiral_data.py
+├── train.py
+├── plot_learning_curve.py
+├── learning_curve.csv
+├── accuracy_curve.png
+├── loss_curve.png
+└── tests/
 ```
 
 ## Architecture
 
 The classifier is a small multilayer perceptron:
 
-Input features â†’ Linear layer â†’ ReLU â†’ Linear layer â†’ Class logits
+Input features → Linear layer → ReLU → Linear layer → Class logits
 
 The model receives two-dimensional spiral-dataset inputs and predicts one of three classes.
 
@@ -112,7 +112,7 @@ The Adam optimizer masks gradients and clears the first and second moment states
 
 Automated tests verify that a masked connection has zero effective weight, receives zero gradient through the layer's forward computation, and remains zero after an Adam update. The tests also verify that the corresponding Adam moment states are cleared.
 
-The full test suite currently passes 29 tests (latest verified run).
+The full test suite currently passes 31 tests (latest verified run).
 
 
 ## Experimental Results
@@ -203,5 +203,6 @@ The training process saves learning metrics to `learning_curve.csv`. The plots `
 ## License
 
 This project was created as an engineering take-home exercise.
+
 
 
