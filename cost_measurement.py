@@ -33,19 +33,16 @@ def count_sparse_macs(model, batch_size):
 
 
 
+
 def benchmark_inference(model, inputs, sparse=False, repeats=100):
-    """Measure average inference time per call."""
+    """Measure average NumPy inference time per call."""
 
-    # Dense forward expects our custom Tensor.
-    # Sparse forward expects a NumPy array.
-    dense_inputs = Tensor(inputs)
-
-    # Warm up before timing.
+    # Warm up before measuring.
     for _ in range(5):
         if sparse:
             model.forward_sparse(inputs)
         else:
-            model.forward(dense_inputs)
+            model.forward_dense_inference(inputs)
 
     start = time.perf_counter()
 
@@ -53,11 +50,12 @@ def benchmark_inference(model, inputs, sparse=False, repeats=100):
         if sparse:
             model.forward_sparse(inputs)
         else:
-            model.forward(dense_inputs)
+            model.forward_dense_inference(inputs)
 
     elapsed = time.perf_counter() - start
 
     return elapsed / repeats
+
 
 def main():
     np.random.seed(42)

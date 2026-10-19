@@ -129,7 +129,6 @@ class Linear:
         return output
 
 
-
     def parameters(self):
         # Return all trainable parameters.
         return [self.weights, self.bias]

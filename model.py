@@ -46,6 +46,26 @@ class MLP:
 
         return logits
 
+    
+    def forward_dense_inference(self, inputs):
+        """
+        Run dense inference using NumPy operations.
+        No autodiff graph is created.
+        """
+
+        # First layer: dense matrix multiplication.
+        hidden = self.layer1.forward_dense_inference(inputs)
+
+        # ReLU activation: replace negative values with zero.
+        hidden = np.maximum(hidden, 0.0)
+
+        # Second layer: calculate final class scores.
+        logits = self.layer2.forward_dense_inference(hidden)
+
+        return logits
+
+    
+
 
     def parameters(self):
         # Collect parameters from both layers.
