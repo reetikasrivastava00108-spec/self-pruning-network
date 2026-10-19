@@ -1,4 +1,4 @@
-# Self-Pruning Neural Network
+﻿# Self-Pruning Neural Network
 
 A NumPy-based neural network built from scratch, featuring a custom reverse-mode automatic differentiation engine, Adam optimizer, and Taylor-based weight pruning.
 
@@ -26,25 +26,25 @@ The implementation uses Python and NumPy for tensor operations, gradient computa
 
 ```text
 self-pruning-network/
-├── tensor.py
-├── layers.py
-├── model.py
-├── optim.py
-├── pruning.py
-├── spiral_data.py
-├── train.py
-├── plot_learning_curve.py
-├── learning_curve.csv
-├── accuracy_curve.png
-├── loss_curve.png
-└── tests/
+â”œâ”€â”€ tensor.py
+â”œâ”€â”€ layers.py
+â”œâ”€â”€ model.py
+â”œâ”€â”€ optim.py
+â”œâ”€â”€ pruning.py
+â”œâ”€â”€ spiral_data.py
+â”œâ”€â”€ train.py
+â”œâ”€â”€ plot_learning_curve.py
+â”œâ”€â”€ learning_curve.csv
+â”œâ”€â”€ accuracy_curve.png
+â”œâ”€â”€ loss_curve.png
+â””â”€â”€ tests/
 ```
 
 ## Architecture
 
 The classifier is a small multilayer perceptron:
 
-Input features → Linear layer → ReLU → Linear layer → Class logits
+Input features â†’ Linear layer â†’ ReLU â†’ Linear layer â†’ Class logits
 
 The model receives two-dimensional spiral-dataset inputs and predicts one of three classes.
 
@@ -112,7 +112,7 @@ The Adam optimizer masks gradients and clears the first and second moment states
 
 Automated tests verify that a masked connection has zero effective weight, receives zero gradient through the layer's forward computation, and remains zero after an Adam update. The tests also verify that the corresponding Adam moment states are cleared.
 
-The full test suite currently passes 25 tests.
+The full test suite currently passes 29 tests (latest verified run).
 
 
 ## Experimental Results
@@ -138,6 +138,34 @@ The 700-epoch pruned experiment improved test accuracy by 5 percentage points co
 Compared with the dense baseline, its test accuracy was 10.56 percentage points lower. This demonstrates an accuracy-versus-sparsity trade-off in the current experiment.
 
 These results represent individual runs; multiple seeds and repeated experiments would be needed to evaluate robustness.
+
+## Taylor vs Magnitude Pruning Comparison
+
+Both pruning methods were evaluated using the same trained dense baseline for each seed. Each baseline was trained for 700 epochs. The methods were tested at 0%, 50%, 75%, 90%, and 95% target sparsity, using seeds 42, 43, and 44 and the same deterministic train/test split.
+
+| Target sparsity | Taylor accuracy | Magnitude accuracy |
+|---:|---:|---:|
+| 0% | 82.78% +/- 7.26% | 82.78% +/- 7.26% |
+| 50% | 52.96% +/- 5.56% | 56.48% +/- 3.90% |
+| 75% | 39.26% +/- 4.46% | 42.41% +/- 2.25% |
+| 90% | 32.04% +/- 4.72% | 34.81% +/- 4.32% |
+| 95% | 34.63% +/- 3.90% | 33.15% +/- 4.49% |
+
+Values are mean test accuracy +/- sample standard deviation across three seeds.
+
+Magnitude pruning achieved higher mean accuracy at 50%, 75%, and 90% sparsity in this experiment. Taylor pruning performed slightly better at 95%. Neither method consistently outperformed the other at every sparsity level. Accuracy dropped substantially as sparsity increased.
+
+The comparison graph is saved as `pruning_comparison.png`. Per-seed results are stored in `pruning_comparison_results.csv`, and aggregated results are stored in `pruning_comparison_summary.csv`.
+
+These findings are limited to three seeds and one synthetic spiral dataset; they are observations from this experiment, not a universal ranking of pruning methods.
+
+## Sparse Inference Cost Measurement
+
+At 75% sparsity, active multiply-accumulate operations (MACs) decreased from 40,960 to 10,240 per batch, a 75% reduction.
+
+However, dense NumPy inference took approximately 0.095 ms per call, while the Python-loop sparse implementation took approximately 0.744 ms per call. Thus, sparse inference was slower despite performing fewer active MACs.
+
+Fewer active connections do not automatically mean faster inference. Efficient sparse execution and further benchmarking are needed before claiming a real speedup.
 
 ## Running the Project
 
@@ -175,3 +203,5 @@ The training process saves learning metrics to `learning_curve.csv`. The plots `
 ## License
 
 This project was created as an engineering take-home exercise.
+
+
