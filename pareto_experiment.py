@@ -13,17 +13,18 @@ from pruning import prune_weights
 
 
 SPARSITY_LEVELS = [0.0, 0.50, 0.75, 0.90, 0.95]
+RANDOM_SEEDS = [42, 43, 44]
 
 
 def evaluate_accuracy(model, X, y):
-    """Return classification accuracy on the supplied dataset."""
+    """Calculate classification accuracy."""
     logits = model.forward(Tensor(X))
     predictions = np.argmax(logits.data, axis=1)
     return float(np.mean(predictions == y))
 
 
-def train_dense_baseline(X_train, y_train, seed=42):
-    """Train one dense model without pruning."""
+def train_dense_baseline(X_train, y_train, seed):
+    """Train a fresh dense model without pruning."""
     np.random.seed(seed)
     rng = np.random.default_rng(seed + 123)
 
@@ -68,7 +69,7 @@ def train_dense_baseline(X_train, y_train, seed=42):
 
 
 def main():
-    # Generate a reproducible dataset and split.
+    # Keep the dataset and train/test split fixed for fair comparison.
     X, y = make_spiral_data(
         samples_per_class=300,
         num_classes=3,
@@ -86,84 +87,148 @@ def main():
     X_train, y_train = X[train_indices], y[train_indices]
     X_test, y_test = X[test_indices], y[test_indices]
 
-    print("Training dense baseline...")
-    baseline = train_dense_baseline(
-        X_train,
-        y_train,
-        seed=42,
-    )
+    raw_results = []
 
-    results = []
+    for seed in RANDOM_SEEDS:
+        print(f"\nTraining dense baseline with seed {seed}...")
 
-    for target_sparsity in SPARSITY_LEVELS:
-        # Each experiment starts from the same trained baseline.
-        model = copy.deepcopy(baseline)
-
-        if target_sparsity > 0:
-            actual_sparsity = prune_weights(
-                model,
-                target_sparsity,
-                X_train,
-                y_train,
-                batch_size=32,
-            )
-        else:
-            actual_sparsity = 0.0
-
-        accuracy = evaluate_accuracy(model, X_test, y_test)
-
-        row = {
-            "target_sparsity": target_sparsity,
-            "actual_sparsity": actual_sparsity,
-            "test_accuracy": accuracy,
-        }
-        results.append(row)
-
-        print(
-            f"Target: {target_sparsity:.0%} | "
-            f"Actual: {actual_sparsity:.2%} | "
-            f"Test accuracy: {accuracy:.2%}"
+        baseline = train_dense_baseline(
+            X_train,
+            y_train,
+            seed=seed,
         )
 
-    # Save the raw measured results.
+        for target_sparsity in SPARSITY_LEVELS:
+            # Every sparsity level starts from this seed's same baseline.
+            model = copy.deepcopy(baseline)
+
+            if target_sparsity > 0:
+                actual_sparsity = prune_weights(
+                    model,
+                    target_sparsity,
+                    X_train,
+                    y_train,
+                    batch_size=32,
+                )
+            else:
+                actual_sparsity = 0.0
+
+            accuracy = evaluate_accuracy(model, X_test, y_test)
+
+            row = {
+                "seed": seed,
+                "target_sparsity": target_sparsity,
+                "actual_sparsity": actual_sparsity,
+                "test_accuracy": accuracy,
+            }
+            raw_results.append(row)
+
+            print(
+                f"Seed: {seed} | "
+                f"Target: {target_sparsity:.0%} | "
+                f"Actual: {actual_sparsity:.2%} | "
+                f"Accuracy: {accuracy:.2%}"
+            )
+
+    # Save every individual measurement.
     with open(
         "pareto_results.csv",
         "w",
         newline="",
         encoding="utf-8",
     ) as file:
-        writer = csv.DictWriter(
-            file,
-            fieldnames=[
-                "target_sparsity",
-                "actual_sparsity",
-                "test_accuracy",
-            ],
-        )
+        fieldnames = [
+            "seed",
+            "target_sparsity",
+            "actual_sparsity",
+            "test_accuracy",
+        ]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(raw_results)
 
-    # Plot actual sparsity against measured test accuracy.
-    sparsities = [
-        row["actual_sparsity"] * 100 for row in results
+    # Calculate mean and standard deviation across seeds.
+    summary_results = []
+
+    for target_sparsity in SPARSITY_LEVELS:
+        matching_rows = [
+            row for row in raw_results
+            if row["target_sparsity"] == target_sparsity
+        ]
+
+        accuracies = np.array(
+            [row["test_accuracy"] for row in matching_rows]
+        )
+        actual_sparsities = np.array(
+            [row["actual_sparsity"] for row in matching_rows]
+        )
+
+        summary_results.append({
+            "target_sparsity": target_sparsity,
+            "mean_actual_sparsity": float(np.mean(actual_sparsities)),
+            "mean_test_accuracy": float(np.mean(accuracies)),
+            "std_test_accuracy": float(np.std(accuracies, ddof=1)),
+        })
+
+    with open(
+        "pareto_summary.csv",
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as file:
+        fieldnames = [
+            "target_sparsity",
+            "mean_actual_sparsity",
+            "mean_test_accuracy",
+            "std_test_accuracy",
+        ]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(summary_results)
+
+    # Plot mean accuracy with standard-deviation error bars.
+    x_values = [
+        row["mean_actual_sparsity"] * 100
+        for row in summary_results
     ]
-    accuracies = [
-        row["test_accuracy"] * 100 for row in results
+    means = [
+        row["mean_test_accuracy"] * 100
+        for row in summary_results
+    ]
+    standard_deviations = [
+        row["std_test_accuracy"] * 100
+        for row in summary_results
     ]
 
     plt.figure(figsize=(8, 5))
-    plt.plot(sparsities, accuracies, marker="o")
-    plt.xlabel("Actual sparsity (%)")
-    plt.ylabel("Test accuracy (%)")
-    plt.title("Sparsity vs Test Accuracy — Taylor Pruning")
+    plt.errorbar(
+        x_values,
+        means,
+        yerr=standard_deviations,
+        marker="o",
+        capsize=5,
+    )
+    plt.xlabel("Mean actual sparsity (%)")
+    plt.ylabel("Mean test accuracy (%)")
+    plt.title("Sparsity vs Accuracy — Taylor Pruning (3 seeds)")
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig("pareto_curve.png", dpi=200)
     plt.close()
 
     print("\nSaved raw results: pareto_results.csv")
+    print("Saved summary statistics: pareto_summary.csv")
     print("Saved graph: pareto_curve.png")
+
+    print("\nSummary (mean accuracy ± standard deviation):")
+    for row in summary_results:
+        print(
+            f"Sparsity {row['target_sparsity']:.0%}: "
+            f"{row['mean_test_accuracy']:.2%} "
+            f"+/- {row['std_test_accuracy']:.2%}"
+        )
 
 
 if __name__ == "__main__":
     main()
+
