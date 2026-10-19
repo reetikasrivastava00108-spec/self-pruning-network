@@ -65,6 +65,70 @@ class Linear:
         output = inputs.matmul(effective_weights) + self.bias
 
         return output
+    
+    def forward_sparse(self, inputs):
+        """
+        Run inference using only active weight connections.
+
+        inputs: NumPy array of shape (batch_size, in_features)
+        output: NumPy array of shape (batch_size, out_features)
+        """
+
+        # Convert inputs to a NumPy array.
+        inputs = np.asarray(inputs, dtype=np.float64)
+
+        # Check that the input has the expected shape.
+        if inputs.ndim != 2:
+            raise ValueError("inputs must be a 2D array.")
+
+        if inputs.shape[1] != self.in_features:
+            raise ValueError("Unexpected number of input features.")
+
+        # Start each output with its bias.
+        output = np.broadcast_to(
+            self.bias.data,
+            (inputs.shape[0], self.out_features)
+        ).copy()
+
+        # Find only connections that have not been pruned.
+        active_inputs, active_outputs = np.nonzero(self.mask)
+
+        # Process each active connection.
+        for input_index, output_index in zip(
+            active_inputs, active_outputs
+        ):
+            weight = self.weights.data[input_index, output_index]
+
+            output[:, output_index] += (
+                inputs[:, input_index] * weight
+            )
+
+        return output
+
+    
+    def forward_dense_inference(self, inputs):
+        """
+        Run dense inference using NumPy matrix multiplication.
+        This method does not build an autodiff graph.
+        """
+
+        inputs = np.asarray(inputs, dtype=np.float64)
+
+        if inputs.ndim != 2:
+            raise ValueError("inputs must be a 2D array.")
+
+        if inputs.shape[1] != self.in_features:
+            raise ValueError("Unexpected number of input features.")
+
+        # Apply the mask so pruned weights remain zero.
+        effective_weights = self.weights.data * self.mask
+
+        # NumPy performs the dense matrix multiplication.
+        output = inputs @ effective_weights + self.bias.data
+
+        return output
+
+
 
     def parameters(self):
         # Return all trainable parameters.

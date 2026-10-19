@@ -1,4 +1,4 @@
-
+import numpy as np
 from layers import Linear
 
 
@@ -28,6 +28,24 @@ class MLP:
         logits = self.layer2.forward(hidden)
 
         return logits
+
+    
+    def forward_sparse(self, inputs):
+        """
+        Run sparse-aware inference through the complete MLP.
+        """
+
+        # First linear layer: process active connections only.
+        hidden = self.layer1.forward_sparse(inputs)
+
+        # Apply ReLU using NumPy.
+        hidden = np.maximum(hidden, 0.0)
+
+        # Second linear layer: process active connections only.
+        logits = self.layer2.forward_sparse(hidden)
+
+        return logits
+
 
     def parameters(self):
         # Collect parameters from both layers.
