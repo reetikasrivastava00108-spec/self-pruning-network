@@ -2,7 +2,11 @@ import numpy as np
 
 from model import MLP
 from spiral_data import make_spiral_data
-from pruning import calculate_importance_scores, prune_weights
+from pruning import (
+    calculate_importance_scores,
+    prune_weights,
+    prune_weights_by_magnitude,
+)
 
 
 def test_importance_scores():
@@ -62,6 +66,68 @@ def test_pruning():
     print(f"Total connections: {total}")
     print(f"Active connections: {active}")
     print(f"Actual sparsity: {sparsity:.0%}")
+
+def test_magnitude_pruning():
+    model = MLP(input_size=2, hidden_size=2, output_size=2)
+
+    weights = [
+        parameter for parameter in model.parameters()
+        if hasattr(parameter, "mask")
+    ]
+
+    # Give every weight a known value.
+    all_values = []
+
+    for parameter in weights:
+        parameter.data[:] = np.arange(
+            1, parameter.data.size + 1
+        ).reshape(parameter.data.shape)
+
+        all_values.extend(np.abs(parameter.data).flatten())
+
+    all_values = np.array(all_values)
+
+    # Make one weight especially small.
+    weights[0].data.flat[0] = 0.001
+
+    # Prune 50% of the total connections.
+    sparsity = prune_weights_by_magnitude(
+        model,
+        target_sparsity=0.5,
+    )
+
+    total = sum(parameter.mask.size for parameter in weights)
+    active = sum(
+        np.count_nonzero(parameter.mask) for parameter in weights
+    )
+
+    assert np.isclose(sparsity, 0.5)
+    assert active == round(total * 0.5)
+
+    # Every pruned weight must be exactly zero.
+    for parameter in weights:
+        assert np.all(parameter.data[parameter.mask == 0] == 0)
+
+    # The intentionally tiny weight should be pruned.
+    assert weights[0].mask.flat[0] == 0
+
+    print("PASS: Magnitude pruning removes small weights correctly.")
+
+
+def test_magnitude_pruning_invalid_sparsity():
+    model = MLP(input_size=2, hidden_size=2, output_size=2)
+
+    for invalid_sparsity in [-0.1, 1.1]:
+        try:
+            prune_weights_by_magnitude(model, invalid_sparsity)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(
+                "Expected ValueError for invalid sparsity."
+            )
+
+    print("PASS: Invalid sparsity values are rejected.")
 
 def test_cubic_schedule():
     from pruning import cubic_sparsity_schedule

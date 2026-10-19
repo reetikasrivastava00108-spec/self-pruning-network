@@ -115,6 +115,70 @@ def prune_weights(model, target_sparsity, X, y, batch_size=32):
 
     return actual_sparsity
 
+def prune_weights_by_magnitude(model, target_sparsity):
+    """
+    Prune weights with the smallest absolute values.
+
+    Unlike Taylor pruning, this method does not need gradients.
+    """
+
+    # Select parameters that represent weight matrices.
+    weights = [
+        parameter
+        for parameter in model.parameters()
+        if hasattr(parameter, "mask")
+    ]
+
+    # Count all weight connections, including already-pruned ones.
+    total_weights = sum(
+        parameter.data.size for parameter in weights
+    )
+
+    if total_weights == 0:
+        raise ValueError("Model has no weights to prune.")
+
+    if not 0.0 <= target_sparsity <= 1.0:
+        raise ValueError("target_sparsity must be between 0 and 1.")
+
+    # Calculate the desired number of active connections.
+    target_active = int(round(
+        total_weights * (1.0 - target_sparsity)
+    ))
+
+    # Collect magnitudes of currently active connections.
+    active_scores = []
+
+    for parameter in weights:
+        active = parameter.mask.astype(bool)
+
+        for index in np.ndindex(parameter.data.shape):
+            if active[index]:
+                importance = abs(parameter.data[index])
+
+                active_scores.append(
+                    (importance, parameter, index)
+                )
+
+    # Smallest absolute values have the lowest importance.
+    active_scores.sort(key=lambda item: item[0])
+
+    # Do not restore connections that were previously pruned.
+    currently_active = len(active_scores)
+    to_prune = max(0, currently_active - target_active)
+
+    # Prune the least-important active connections.
+    for _, parameter, index in active_scores[:to_prune]:
+        parameter.mask[index] = 0.0
+        parameter.data[index] = 0.0
+
+    # Calculate the actual sparsity after pruning.
+    remaining = sum(
+        np.count_nonzero(parameter.mask)
+        for parameter in weights
+    )
+
+    return 1.0 - remaining / total_weights
+
 def cubic_sparsity_schedule(
     epoch,
     start_epoch,
