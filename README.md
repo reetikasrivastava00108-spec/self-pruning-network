@@ -175,6 +175,21 @@ However, the current Python-loop sparse inference implementation takes 0.768 ms 
 
 *Note: Timing measurements depend on hardware and runtime conditions.*
 
+## Installation
+
+### 1. Create and activate a virtual environment
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### 2. Install dependencies
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
 ## Running the Project
 
@@ -186,13 +201,51 @@ Run the training experiment:
 python train.py
 ```
 
+### Part 3: Self-Pruning Training
+
+Run the training script to train the neural network with self-pruning enabled:
+
+```powershell
+python train.py
+```
+
+During training, the network gradually prunes less-important connections according to a cubic sparsity schedule. The pruning process starts at epoch 200 and ends at epoch 580, targeting 75% sparsity over 700 training epochs.
+
+
 Run the test suite:
 
 ```bash
 python -m pytest -q
 ```
 
+### Gradient Checks
+
+Run the automatic differentiation tests to verify analytical gradients against numerical gradients calculated using finite differences:
+
+```powershell
+python -m pytest -v tests/test_autodiff.py
+```
+
+
 The training process saves learning metrics to `learning_curve.csv`. The plots `accuracy_curve.png` and `loss_curve.png` can be used to inspect model behavior.
+
+### Part 4: Pareto Experiment
+
+Run the Pareto experiment to evaluate the trade-off between model sparsity and test accuracy across multiple random seeds:
+
+```powershell
+python pareto_experiment.py
+```
+
+The experiment uses three random seeds (42, 43, and 44) and evaluates target sparsity levels of 0%, 50%, 75%, 90%, and 95%. Each sparsity level is evaluated using the same seed-specific dense baseline for a fair comparison.
+
+The experiment generates the following files:
+
+- `pareto_results.csv`: Results for individual seeds and sparsity levels.
+- `pareto_summary.csv`: Mean test accuracy and standard deviation for each target sparsity level.
+- `pareto_curve.png`: Plot of mean test accuracy against mean actual sparsity, with standard-deviation error bars.
+
+Higher sparsity reduces the number of active connections, but may also reduce classification accuracy. The experiment helps measure this trade-off on the spiral dataset.
 
 ## Limitations
 
